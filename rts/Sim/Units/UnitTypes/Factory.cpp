@@ -154,9 +154,14 @@ void CFactory::Update()
 			lastBuild = gs->frameNum;
 
 			// buildPiece is the rotating platform
-			const int buildPiece = GetBuildPiece();
+			int buildPiece = GetBuildPiece();
 			const CMatrix44f& mat = script->GetPieceMatrix(buildPiece);
-			const int h = GetHeadingFromVector(mat[2], mat[10]);
+			int h = GetHeadingFromVector(mat[2], mat[10]);
+
+			ASSERT_SYNCED_PRIMITIVE(buildPiece);
+			ASSERT_SYNCED_PRIMITIVE(mat[2]);
+			ASSERT_SYNCED_PRIMITIVE(mat[10]);
+			ASSERT_SYNCED_PRIMITIVE(h);
 
 			// rotate unit nanoframe with platform
 			curBuild->heading = (h + GetHeadingFromFacing(buildFacing)) & 65535;
