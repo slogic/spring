@@ -4,3 +4,6 @@
 [submodule "HughAI"]
 	path = AI/Skirmish/HughAI
 	url = git://github.com/hughperkins/HughAI.git
+[submodule "AI/Interfaces/Python"]
+	path = AI/Interfaces/Python
+	url = git://springpyai.git.sourceforge.net/gitroot/springpyai/springpyai
