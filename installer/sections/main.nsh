@@ -97,6 +97,7 @@
 	${!echonow} "Processing: main: AI Interfaces"
 	!insertmacro InstallAIInterface "C"
 	!insertmacro InstallAIInterface "Java"
+	!insertmacro InstallAIInterface "Python"
 
 !macro InstallSkirmishAI skirAiName
 !ifdef INSTALL
@@ -118,6 +119,10 @@
 	;TODO: Fix the vc projects to use the same names.
 	!insertmacro InstallSkirmishAI "NullAI"
 	!insertmacro InstallSkirmishAI "NullOOJavaAI"
+	; Install NullPythonAI (special case)
+	SetOutPath "$INSTDIR\AI\Skirmish\NullPythonAI\0.1"
+	File /r "..\AI\Interfaces\Python\test\NullPythonAI\data\AIInfo.lua"
+	File /r "..\AI\Interfaces\Python\test\NullPythonAI\src\nullai.py"
 
 	${!echonow} "Processing: main: base archives"
 	; Default content
