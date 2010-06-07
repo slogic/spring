@@ -28,10 +28,6 @@
 
 #include "GameServer.h"
 
-#ifndef NO_AVI
-	#include "Game.h"
-#endif
-
 #include "LogOutput.h"
 #include "GameSetup.h"
 #include "Action.h"
@@ -53,6 +49,7 @@
 #include "ConfigHandler.h"
 #include "FileSystem/CRC.h"
 #include "Player.h"
+#include "IVideoCapturing.h"
 #include "Server/GameParticipant.h"
 #include "Server/GameSkirmishAI.h"
 // This undef is needed, as somewhere there is a type interface specified,
@@ -388,7 +385,7 @@ void CGameServer::Broadcast(boost::shared_ptr<const netcode::RawPacket> packet)
 	{
 		players[p].SendData(packet);
 	}
-	if (allowAdditionalPlayers || !spring_istime(gameStartTime))
+	if (canReconnect || allowAdditionalPlayers || !spring_istime(gameStartTime))
 	{
 		packetCache.push_back(packet);
 	}
@@ -858,11 +855,16 @@ void CGameServer::ProcessPacket(const unsigned playernum, boost::shared_ptr<cons
 		} break;
 
 		case NETMSG_CHAT: {
-			ChatMessage msg(packet);
-			if (static_cast<unsigned>(msg.fromPlayer) != a ) {
-				Message(str(format(WrongPlayer) %(unsigned)NETMSG_CHAT %a %(unsigned)msg.fromPlayer));
-			} else {
-				GotChatMessage(msg);
+			try {
+				ChatMessage msg(packet);
+
+				if (static_cast<unsigned>(msg.fromPlayer) != a ) {
+					Message(str(format(WrongPlayer) %(unsigned)NETMSG_CHAT %a %(unsigned)msg.fromPlayer));
+				} else {
+					GotChatMessage(msg);
+				}
+			} catch (netcode::UnpackPacketException &e) {
+				Message(str(format("Player %s sent invalid ChatMessage: %s") %players[a].name %e.err));
 			}
 			break;
 		}
@@ -1308,24 +1310,29 @@ void CGameServer::ProcessPacket(const unsigned playernum, boost::shared_ptr<cons
 			break;
 		}
 		case NETMSG_CCOMMAND: {
-			CommandMessage msg(packet);
-			if (static_cast<unsigned>(msg.player) == a)
-			{
-				if ((commandBlacklist.find(msg.action.command) != commandBlacklist.end()) && players[a].isLocal)
+			try {
+				CommandMessage msg(packet);
+
+				if (static_cast<unsigned>(msg.player) == a)
 				{
-					// command is restricted to server but player is allowed to execute it
-					PushAction(msg.action);
+					if ((commandBlacklist.find(msg.action.command) != commandBlacklist.end()) && players[a].isLocal)
+					{
+						// command is restricted to server but player is allowed to execute it
+						PushAction(msg.action);
+					}
+					else if (commandBlacklist.find(msg.action.command) == commandBlacklist.end())
+					{
+						// command is save
+						Broadcast(packet);
+					}
+					else
+					{
+						// hack!
+						Message(str(boost::format(CommandNotAllowed) %msg.player %msg.action.command.c_str()));
+					}
 				}
-				else if (commandBlacklist.find(msg.action.command) == commandBlacklist.end())
-				{
-					// command is save
-					Broadcast(packet);
-				}
-				else
-				{
-					// hack!
-					Message(str(boost::format(CommandNotAllowed) %msg.player %msg.action.command.c_str()));
-				}
+			} catch (netcode::UnpackPacketException &e) {
+				Message(str(boost::format("Player %s sent invalid CommandMessage: %s") %players[a].name %e.err));
 			}
 			break;
 		}
@@ -1413,12 +1420,19 @@ void CGameServer::ServerReadNet()
 
 		if (packet && packet->length >= 3 && packet->data[0] == NETMSG_ATTEMPTCONNECT)
 		{
-			netcode::UnpackPacket msg(packet, 3);
-			std::string name, passwd, version;
-			msg >> name;
-			msg >> passwd;
-			msg >> version;
-			BindConnection(name, passwd, version, false, UDPNet->AcceptConnection());
+			try {
+				netcode::UnpackPacket msg(packet, 3);
+				std::string name, passwd, version;
+				unsigned char reconnect;
+				msg >> name;
+				msg >> passwd;
+				msg >> version;
+				msg >> reconnect;
+				BindConnection(name, passwd, version, false, UDPNet->AcceptConnection(), reconnect);
+			} catch (netcode::UnpackPacketException &e) {
+				Message(str(format(ConnectionReject) %packet->data[0] %packet->data[2] %packet->length));
+				UDPNet->RejectConnection();
+			}
 		}
 		else
 		{
@@ -1443,9 +1457,7 @@ void CGameServer::ServerReadNet()
 			players[a].Kill("User timeout");
 			UpdateSpeedControl(speedControl);
 			if (hostif)
-			{
 				hostif->SendPlayerLeft(a, 0);
-			}
 			continue;
 		}
 
@@ -1530,10 +1542,10 @@ void CGameServer::CheckForGameStart(bool forced)
 void CGameServer::StartGame()
 {
 	gameStartTime = spring_gettime();
-	if (!allowAdditionalPlayers)
+	if (!canReconnect && !allowAdditionalPlayers)
 		packetCache.clear(); // free memory
 
-	if (UDPNet && !allowAdditionalPlayers && !canReconnect)
+	if (UDPNet && !canReconnect && !allowAdditionalPlayers)
 		UDPNet->Listen(false); // don't accept new connections
 
 	// make sure initial game speed is within allowed range and sent a new speed if not
@@ -1790,23 +1802,21 @@ void CGameServer::CreateNewFrame(bool fromServerThread, bool fixedFrameTime)
 			}
 		}
 
-		bool rec = false;
-#ifndef NO_AVI
-		rec = game && game->creatingVideo;
-#endif
-		bool normalFrame = !isPaused && !rec;
-		bool videoFrame = !isPaused && fixedFrameTime;
-		bool singleStep = fixedFrameTime && !rec;
+		const bool rec = videoCapturing->IsCapturing();
+		const bool normalFrame = !isPaused && !rec;
+		const bool videoFrame = !isPaused && fixedFrameTime;
+		const bool singleStep = fixedFrameTime && !rec;
 
-		if(normalFrame || videoFrame || singleStep){
-			for(int i=0; i < newFrames; ++i){
+		if (normalFrame || videoFrame || singleStep) {
+			for (int i=0; i < newFrames; ++i) {
 				assert(!demoReader);
 				++serverframenum;
-				//Send out new frame messages.
-				if (0 == (serverframenum % serverKeyframeIntervall))
+				// Send out new frame messages.
+				if ((serverframenum % serverKeyframeIntervall) == 0) {
 					Broadcast(CBaseNetProtocol::Get().SendKeyFrame(serverframenum));
-				else
+				} else {
 					Broadcast(CBaseNetProtocol::Get().SendNewFrame());
+				}
 #ifdef SYNCCHECK
 				outstandingSyncFrames.push_back(serverframenum);
 #endif
@@ -1897,9 +1907,10 @@ void CGameServer::KickPlayer(const int playerNum)
 
 }
 
-unsigned CGameServer::BindConnection(std::string name, const std::string& passwd, const std::string& version, bool isLocal, boost::shared_ptr<netcode::CConnection> link)
+
+unsigned CGameServer::BindConnection(std::string name, const std::string& passwd, const std::string& version, bool isLocal, boost::shared_ptr<netcode::CConnection> link, bool reconnect)
 {
-	Message(str(format("Connection attempt from %s") %name));
+	Message(str(format("%s attempt from %s") %(reconnect ? "Reconnection" : "Connection") %name));
 	Message(str(format(" -> Version: %s") %version));
 	Message(str(format(" -> Address: %s") %link->GetFullAddress()), false);
 	size_t hisNewNumber = players.size();
@@ -1908,19 +1919,25 @@ unsigned CGameServer::BindConnection(std::string name, const std::string& passwd
 		canReconnect = true;
 
 	std::string errmsg = "";
+	bool terminate = false;
 
 	for (size_t i = 0; i < players.size(); ++i) {
 		if (name == players[i].name) {
 			if(!players[i].isFromDemo) {
 				if (!players[i].link) {
-					if(allowAdditionalPlayers || !GameHasStarted())
+					if(canReconnect || !GameHasStarted())
 						hisNewNumber = i;
 					else
 						errmsg = "Game has already started";
 					break;
 				}
 				else {
-					if(canReconnect && GameHasStarted() && players[i].link->CheckTimeout(-1) && players[i].link->GetFullAddress() != link->GetFullAddress())
+					bool reconnectAllowed = canReconnect && GameHasStarted() && players[i].link->CheckTimeout(-1);
+					if(!reconnect && reconnectAllowed) {
+						hisNewNumber = i;
+						terminate = true;
+					}
+					else if(reconnect && reconnectAllowed && players[i].link->GetFullAddress() != link->GetFullAddress())
 						hisNewNumber = i;
 					else
 						errmsg = "User is already ingame";
@@ -1960,6 +1977,17 @@ unsigned CGameServer::BindConnection(std::string name, const std::string& passwd
 	}
 
 	GameParticipant& newGuy = players[hisNewNumber];
+
+	if(terminate) {
+		Message(str(format(PlayerLeft) %newGuy.GetType() %newGuy.name %" terminating existing connection"));
+		Broadcast(CBaseNetProtocol::Get().SendPlayerLeft(hisNewNumber, 0));
+		newGuy.link.reset(); // prevent sending a quit message since this might kill the new connection
+		newGuy.Kill("Terminating connection");
+		UpdateSpeedControl(speedControl);
+		if(hostif)
+			hostif->SendPlayerLeft(hisNewNumber, 0);
+	}
+
 	if(newGuy.link) {
 		newGuy.link->ReconnectTo(*link);
 		Message(str(format(" -> Connection reestablished (id %i)") %hisNewNumber));

@@ -208,14 +208,28 @@ Function OldDotNet
 FunctionEnd
 
 
-Section "Main application (req)" SEC_MAIN
-	!define INSTALL
-		${!echonow} "Processing: main"
-		!include "sections\main.nsh"
-		${!echonow} "Processing: luaui"
-		!include "sections\luaui.nsh"
-	!undef INSTALL
-SectionEnd
+SectionGroup /e "!Engine"
+	Section "Main application (req)" SEC_MAIN
+
+		!define INSTALL
+			${!echonow} "Processing: main"
+			!include "sections\main.nsh"
+			${!echonow} "Processing: luaui"
+			!include "sections\luaui.nsh"
+		!undef INSTALL
+	SectionEnd
+
+	${!defineiffileexists} GML_BUILD_EXISTS "${BUILD_OR_DIST_DIR}\spring-gml.exe"
+	!ifdef GML_BUILD_EXISTS
+		Section "GML (multi-threaded)" SEC_GML
+			${!echonow} "Processing: spring-gml.exe"
+			SetOutPath "$INSTDIR"
+			SetOverWrite on
+			File "${BUILD_OR_DIST_DIR}\spring-gml.exe"
+		SectionEnd
+		!undef GML_BUILD_EXISTS
+	!endif
+SectionGroupEnd
 
 
 SectionGroup "Multiplayer battlerooms"
@@ -225,9 +239,26 @@ SectionGroup "Multiplayer battlerooms"
 		!include "sections\springlobby.nsh"
 	!undef INSTALL
 	SectionEnd
+
+	Section "Content downloader and fast-join lobby" SEC_SPRINGDOWNLOADER
+		!define INSTALL
+			${!echonow} "Processing: springDownloader"
+			!include "sections\springDownloader.nsh"
+		!undef INSTALL
+	SectionEnd
 SectionGroupEnd
 
-Section "Desktop shortcut" SEC_DESKTOP
+
+SectionGroup "Multiplayer lobby servers"
+	Section "TASServer" SEC_TASSERVER
+		!define INSTALL
+			${!echonow} "Processing: TASServer"
+			!include "sections\tasServer.nsh"
+		!undef INSTALL
+	SectionEnd
+SectionGroupEnd
+
+Section "Desktop shortcuts" SEC_DESKTOP
 	${If} ${SectionIsSelected} ${SEC_SPRINGLOBBY}
 		${!echonow} "Processing: springlobby shortcut"
 		SetOutPath "$INSTDIR"
@@ -240,13 +271,6 @@ SectionGroup "Tools"
 		!define INSTALL
 			${!echonow} "Processing: archivemover"
 			!include "sections\archivemover.nsh"
-		!undef INSTALL
-	SectionEnd
-
-	Section "Content downloader" SEC_SPRINGDOWNLOADER
-		!define INSTALL
-			${!echonow} "Processing: springDownloader"
-			!include "sections\springDownloader.nsh"
 		!undef INSTALL
 	SectionEnd
 
@@ -324,10 +348,13 @@ Section Uninstall
 
 	!include "sections\main.nsh"
 
+	Delete "$INSTDIR\spring-gml.exe"
+
 	!include "sections\docs.nsh"
 	!include "sections\shortcuts.nsh"
 	!include "sections\archivemover.nsh"
 	!include "sections\springDownloader.nsh"
+	!include "sections\tasServer.nsh"
 	!insertmacro DeleteSkirmishAI "AAI"
 	!insertmacro DeleteSkirmishAI "KAIK"
 	!insertmacro DeleteSkirmishAI "RAI"

@@ -98,7 +98,7 @@ enum NETMSG {
 // Data types for NETMSG_CUSTOM_DATA
 #define CUSTOM_DATA_SPEEDCONTROL 0
 
-// action to do with NETMSG_TEAM
+/// sub-action-types of NETMSG_TEAM
 enum TEAMMSG {
 //	TEAMMSG_NAME            = number    parameter1, ...
 	TEAMMSG_GIVEAWAY        = 1,     // team to give stuff to, team to take stuff from (player has to be leader of the team)
@@ -107,6 +107,13 @@ enum TEAMMSG {
 	TEAMMSG_TEAM_DIED       = 4,     // team which had died special note: this is sent by all players to prevent cheating
 //TODO: changing teams (to spectator, from spectator to specific team)
 //TODO: in-game allyteams
+};
+
+/// sub-action-types of NETMSG_MAPDRAW
+enum MapDrawAction {
+	MAPDRAW_POINT,
+	MAPDRAW_ERASE,
+	MAPDRAW_LINE
 };
 
 /**
@@ -146,7 +153,7 @@ public:
 	PacketType SendSpeedControl(uchar myPlayerNum, int speedCtrl);
 	PacketType SendDirectControl(uchar myPlayerNum);
 	PacketType SendDirectControlUpdate(uchar myPlayerNum, uchar status, short heading, short pitch);
-	PacketType SendAttemptConnect(const std::string name, const std::string& passwd, const std::string version);
+	PacketType SendAttemptConnect(const std::string name, const std::string& passwd, const std::string version, bool reconnect = false);
 	PacketType SendShare(uchar myPlayerNum, uchar shareTeam, uchar bShareUnits, float shareMetal, float shareEnergy);
 	PacketType SendSetShare(uchar myPlayerNum, uchar myTeam, float metalShareFraction, float energyShareFraction);
 	PacketType SendSendPlayerStat();
