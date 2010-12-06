@@ -21,35 +21,27 @@
 CR_BIND_DERIVED(CTransportUnit, CUnit, );
 
 CR_REG_METADATA(CTransportUnit, (
-				CR_MEMBER(transported),
-				CR_MEMBER(transportCapacityUsed),
-				CR_MEMBER(transportMassUsed),
-				CR_RESERVED(16),
-				CR_POSTLOAD(PostLoad)
-				));
+	CR_MEMBER(transported),
+	CR_MEMBER(transportCapacityUsed),
+	CR_MEMBER(transportMassUsed),
+	CR_RESERVED(16),
+	CR_POSTLOAD(PostLoad)
+));
 
 CR_BIND(CTransportUnit::TransportedUnit,);
 
 CR_REG_METADATA_SUB(CTransportUnit,TransportedUnit,(
-					CR_MEMBER(unit),
-					CR_MEMBER(piece),
-					CR_MEMBER(size),
-					CR_MEMBER(mass),
-					CR_RESERVED(8)
-					));
+	CR_MEMBER(unit),
+	CR_MEMBER(piece),
+	CR_MEMBER(size),
+	CR_MEMBER(mass),
+	CR_RESERVED(8)
+));
 
 CTransportUnit::CTransportUnit(): transportCapacityUsed(0), transportMassUsed(0)
 {
 }
 
-
-CTransportUnit::~CTransportUnit()
-{
-}
-
-void CTransportUnit::PostLoad()
-{
-}
 
 void CTransportUnit::Update()
 {
@@ -137,7 +129,7 @@ void CTransportUnit::KillUnit(bool selfDestruct, bool reclaimed, CUnit* attacker
 		} else {
 			// immobile units can still be transported
 			// via script trickery, guard against this
-			if(!u->unitDef->IsTerrainHeightOK(gh)) {
+			if (!u->unitDef->IsTerrainHeightOK(gh)) {
 				u->KillUnit(false, false, NULL, false);
 				continue;
 			}
@@ -158,7 +150,7 @@ void CTransportUnit::KillUnit(bool selfDestruct, bool reclaimed, CUnit* attacker
 				const float k = (u->radius + radius)*std::max(unitDef->unloadSpread, 1.f);
 				// try to unload in a presently unoccupied spot
 				// unload on a wreck if suitable position not found
-				for (int i = 0; i<10; ++i) {
+				for (int i = 0; i < 10; ++i) {
 					float3 pos = u->pos;
 					pos.x += gs->randFloat()*2*k - k;
 					pos.z += gs->randFloat()*2*k - k;
@@ -173,11 +165,8 @@ void CTransportUnit::KillUnit(bool selfDestruct, bool reclaimed, CUnit* attacker
 				mt->StartFlying();
 			}
 
-			u->stunned = (u->paralyzeDamage > (modInfo.paralyzeOnMaxHealth? u->maxHealth: u->health));
-			loshandler->MoveUnit(u, false);
-			qf->MovedUnit(u);
-			radarhandler->MoveUnit(u);
-			u->moveType->LeaveTransport();
+			((AMoveType*) u->moveType)->SlowUpdate();
+			(             u->moveType)->LeaveTransport();
 
 			// issue a move order so that unit won't try to return to pick-up pos in IdleCheck()
 			if (dynamic_cast<CTAAirMoveType*>(moveType)) {
@@ -190,6 +179,7 @@ void CTransportUnit::KillUnit(bool selfDestruct, bool reclaimed, CUnit* attacker
 				u->commandAI->GiveCommand(c);
 			}
 
+			u->stunned = (u->paralyzeDamage > (modInfo.paralyzeOnMaxHealth? u->maxHealth: u->health));
 			u->speed = speed * (0.5f + 0.5f * gs->randFloat());
 
 			eventHandler.UnitUnloaded(u, this);
@@ -314,15 +304,12 @@ bool CTransportUnit::DetachUnitCore(CUnit* unit)
 			// de-stun in case it isFirePlatform=0
 			unit->stunned = (unit->paralyzeDamage > (modInfo.paralyzeOnMaxHealth? unit->maxHealth: unit->health));
 
-			loshandler->MoveUnit(unit, false);
-			qf->MovedUnit(unit);
-			radarhandler->MoveUnit(unit);
+			((AMoveType*) unit->moveType)->SlowUpdate();
+			(             unit->moveType)->LeaveTransport();
 
 			transportCapacityUsed -= ti->size;
 			transportMassUsed -= ti->mass;
 			transported.erase(ti);
-
-			unit->moveType->LeaveTransport();
 
 			unit->CalculateTerrainType();
 			unit->UpdateTerrainType();
@@ -366,6 +353,8 @@ void CTransportUnit::DetachUnitFromAir(CUnit* unit, float3 pos)
 		unit->commandAI->GiveCommand(c);
 	}
 }
+
+
 
 bool CTransportUnit::CanLoadUnloadAtPos(const float3& wantedPos, const CUnit *unit) const {
 	bool isok;

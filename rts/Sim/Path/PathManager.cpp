@@ -99,13 +99,16 @@ unsigned int CPathManager::RequestPath(
 	const float distanceToGoal = pfDef->Heuristic(int(startPos.x / SQUARE_SIZE), int(startPos.z / SQUARE_SIZE));
 
 	if (distanceToGoal < DETAILED_DISTANCE) {
-		result = maxResPF->GetPath(*moveData, startPos, *pfDef, newPath->maxResPath, true, false, MAX_SEARCHED_NODES_PF, true, ownerId, synced);
+		result = maxResPF->GetPath(*moveData, startPos, *pfDef, newPath->maxResPath, true, false, MAX_SEARCHED_NODES_PF >> 2, true, ownerId, synced);
 
 		pfDef->DisableConstraint(true);
 
-		// fallback
+		// fallback (note: uses PE, unconstrained PF queries are too expensive on average)
 		if (result != IPath::Ok) {
-			result = maxResPF->GetPath(*moveData, startPos, *pfDef, newPath->maxResPath, true, false, MAX_SEARCHED_NODES_PF, true, ownerId, synced);
+			result = medResPE->GetPath(*moveData, startPos, *pfDef, newPath->medResPath, MAX_SEARCHED_NODES_PE, synced);
+			// note: we don't need to clear newPath->maxResPath from the previous
+			// maxResPF->GetPath() call (the med-to-max conversion takes care of it)
+			MedRes2MaxRes(*newPath, startPos, ownerId, synced);
 		}
 
 		newPath->searchResult = result;
