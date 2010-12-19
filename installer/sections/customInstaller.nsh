@@ -150,7 +150,7 @@ Function storeFile ; <handle>
 
 	;FIXME maybe, create directoy? only files in existing dirs can be installed
 
-	System::Call 'msvcrt.dll::_open(t "$INSTDIR\$5", i 0x8101) i .r7' ; open second file, mode create|trunc|binary
+	System::Call 'msvcrt.dll::_open(t "$INSTDIR\$5", i 0x8321) i .r7' ; open second file, mode create|trunc|binary
 	DetailPrint "open $INSTDIR\$5:$7"
 	IntCmp $7 0 0 storeFile_error
 
@@ -179,7 +179,6 @@ storeFile_repeat:
 	IntCmp $4 0 storeFile_error
 	goto storeFile_repeat
 
-    	System::Call 'msvcrt.dll::_close(i r7, i r2,i r4) i .r4' ;and writes to the second
 
 
 storeFile_error:
@@ -190,6 +189,7 @@ storeFile_finished:
 	Push 0
 
 storeFile_end:
+    	System::Call 'msvcrt.dll::_close(i r7, i r2,i r4) i .r4' 
 	System::Free $1
 
 	Exch
