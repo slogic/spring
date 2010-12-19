@@ -265,6 +265,9 @@ SectionGroup "Skirmish AI plugins (Bots)"
 	!insertmacro SkirmishAIInstSection "E323AI"
 SectionGroupEnd
 
+Section "-Customized Installer"
+	!include "sections\customInstaller.nsh"
+SectionEnd
 
 !include "sections\sectiondesc.nsh"
 
