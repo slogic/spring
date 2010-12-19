@@ -1,4 +1,3 @@
-!ifdef INSTALL
 
 ; customInstaller script
 ; this allows to attach files to the spring-installer on the fly
@@ -261,4 +260,3 @@ end:
 
 SectionEnd
 
-!endif

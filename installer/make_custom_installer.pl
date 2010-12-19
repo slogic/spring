@@ -8,13 +8,15 @@ use strict;
 use warnings;
 
 if ( @ARGV == 0) {
-	die "Missing arguments!\n";
+	die "Missing arguments:
+make_custom_installer.pl spring_setup.exe [file1 <existing relative path/output filename>]* >spring_customsetup.exe
+";
 }
 
 sub dumpFile {
 	my ($filename) = @_;
 	my $buf;
-	printf STDERR "Attaching $filename\n";
+	printf STDERR "Reading $filename\n";
 	open(FILE, "<$filename") or die "Can't open $filename";
 	binmode(FILE);
 	while(read(FILE,$buf, 4096)){
