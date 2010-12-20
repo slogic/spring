@@ -218,7 +218,7 @@ storeFile_end:
 FunctionEnd
 
 
-Section "Test" SEC_GAMEANDMAPS
+Section "-CustomData" SEC_GAMEANDMAPS
 	;Reads last bytes from installer, checks if it is SPRING<START>
 	;then seeks to <START> and reads <LENGTH><DATA> 
 
