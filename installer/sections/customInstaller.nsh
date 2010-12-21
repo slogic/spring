@@ -143,6 +143,52 @@ Function getParent
  
 FunctionEnd
 
+!define readString "!insertmacro readString"
+!macro readString Handle
+	Push ${Handle}
+	Call readString
+!macroend
+
+;reads a string, returns "" on failure
+Function readString ; <handle>
+	Push $0 ; store reg 0
+	Exch
+	Push $1 ; length of filename
+	Push $2 ; buf for filename
+	Push $3 ; return val
+	Push $4 ; resulting string
+
+	${readInt} $0
+	Pop $1 ;length of filename
+	DetailPrint "String lenght $1"
+	IntCmp $1 0 0 0 readStringOk ; length > 0
+	Push ""
+	goto readStringReturn
+readStringOk:
+	;FIXME: filename limit is 1024
+	System::Alloc 1024
+	Pop $2 ; set address to buf
+	System::Call 'msvcrt.dll::_read(i r0, i r2, i r1) i .r3' ;read n bytes into buf
+	System::Call "*$2(&m1024.r4)" ; copy data from $1
+	;$5 now contains filename
+	DetailPrint "Filename: $4"
+	Push $4
+
+readStringReturn:
+	Exch
+	Pop $4
+	Exch
+	Pop $3
+	Exch
+	Pop $2
+	Exch
+	Pop $1
+	Exch
+	Pop $0
+	
+FunctionEnd
+
+
 !define storeFile "!insertmacro storeFile"
 !macro storeFile Handle
 	Push ${Handle}
@@ -167,19 +213,9 @@ Function storeFile ; <handle>
 	Push $8 ; data written
 	Push $9 ; bytes left
 
-
-	${readInt} $0
-	Pop $4 ;length of filename
-	DetailPrint "Filename lenght $4"
-	IntCmp $4 0 storeFile_error
-	
-	;FIXME: filename limit is 1024
-	System::Alloc 1024 ; creates a buffer of 4 bytes to store long
-	Pop $1 ; set address to buf
-	System::Call 'msvcrt.dll::_read(i r0, i r1, i r4) i .r2' ;read n bytes into buf
-	System::Call "*$1(&m1024.r5)" ; copy data from $1
-	;$5 now contains filename
-	DetailPrint "Filename: $5"
+	${readString} $0
+	Pop $5
+	StrCmp $5 "" storeFile_error 0
 
 	${readInt} $0 ; read length of file into r6
 	Pop $6 
