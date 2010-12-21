@@ -106,6 +106,43 @@ Function readSignature ; <handle>
 
 FunctionEnd
 
+!define getParent "!insertmacro getParent"
+!macro getParent Path
+	Push ${Path}
+	Call getParent
+!macroend
+
+; getParent
+; input, top of stack  (e.g. C:\Program Files\Spring\Path\somefile)
+; output, top of stack (replaces, with e.g. C:\Program Files\Spring\Path)
+; modifies no other variables.
+Function getParent
+ 
+  Exch $R0
+  Push $R1
+  Push $R2
+  Push $R3
+ 
+  StrCpy $R1 0
+  StrLen $R2 $R0
+ 
+  loop:
+    IntOp $R1 $R1 + 1
+    IntCmp $R1 $R2 get 0 get
+    StrCpy $R3 $R0 1 -$R1
+    StrCmp $R3 "\" get
+  Goto loop
+ 
+  get:
+    StrCpy $R0 $R0 -$R1
+ 
+    Pop $R3
+    Pop $R2
+    Pop $R1
+    Exch $R0
+ 
+FunctionEnd
+
 !define storeFile "!insertmacro storeFile"
 !macro storeFile Handle
 	Push ${Handle}
@@ -148,7 +185,12 @@ Function storeFile ; <handle>
 	Pop $6 
 	DetailPrint "Length of file: $6"
 
-	;FIXME maybe, create directoy? only files in existing dirs can be installed
+	${getParent} "$INSTDIR\$5"
+	Pop $2
+	${IfNot} ${FileExists} $2
+	DetailPrint "Create Dir $2"
+	CreateDirectory $2
+	${EndIf}
 
 	System::Call 'msvcrt.dll::_open(t "$INSTDIR\$5", i 0x8321) i .r7' ; open second file, mode create|trunc|binary
 	DetailPrint "open $INSTDIR\$5:$7"
