@@ -13,69 +13,74 @@
 AMoveType* MoveTypeFactory::GetMoveType(CUnit* unit, const UnitDef* ud) {
 	AMoveType* mt = NULL;
 
-	if (ud->canmove && !ud->canfly && ud->speed > 0.0f) {
-		// ground-mobility
-		assert(ud->movedata != NULL);
+	if (ud->WantsMoveType()) {
+		if (!ud->canfly) {
+			// ground-mobility
+			assert(ud->movedata != NULL);
+			assert(unit->mobility == NULL);
 
-		CGroundMoveType* gmt = new CGroundMoveType(unit);
-		gmt->maxSpeed = ud->speed / GAME_SPEED;
-		gmt->maxReverseSpeed = ud->rSpeed / GAME_SPEED;
-		gmt->maxWantedSpeed = ud->speed / GAME_SPEED;
-		gmt->turnRate = ud->turnRate;
-		gmt->accRate = std::max(0.01f, ud->maxAcc);
-		gmt->decRate = std::max(0.01f, ud->maxDec);
+			unit->mobility = new MoveData(ud->movedata);
 
-		mt = gmt;
-	} else if (ud->canfly && ud->speed > 0.0f) {
-		// air-mobility
-		assert(ud->movedata == NULL);
+			CGroundMoveType* gmt = new CGroundMoveType(unit);
+			gmt->maxSpeed = ud->speed / GAME_SPEED;
+			gmt->maxReverseSpeed = ud->rSpeed / GAME_SPEED;
+			gmt->maxWantedSpeed = ud->speed / GAME_SPEED;
+			gmt->turnRate = ud->turnRate;
+			gmt->accRate = std::max(0.01f, ud->maxAcc);
+			gmt->decRate = std::max(0.01f, ud->maxDec);
 
-		if ((ud->type == "Builder") || ud->hoverAttack || ud->transportCapacity) {
-			CTAAirMoveType* taamt = new CTAAirMoveType(unit);
-
-			taamt->turnRate = ud->turnRate;
-			taamt->maxSpeed = ud->speed / GAME_SPEED;
-			taamt->accRate = std::max(0.01f, ud->maxAcc);
-			taamt->decRate = std::max(0.01f, ud->maxDec);
-			taamt->wantedHeight = ud->wantedHeight + gs->randFloat() * 5.0f;
-			taamt->orgWantedHeight = taamt->wantedHeight;
-			taamt->dontLand = ud->DontLand();
-			taamt->collide = ud->collide;
-			taamt->altitudeRate = ud->verticalSpeed;
-			taamt->bankingAllowed = ud->bankingAllowed;
-			taamt->useSmoothMesh = ud->useSmoothMesh;
-
-			mt = taamt;
+			mt = gmt;
 		} else {
-			CAirMoveType* amt = new CAirMoveType(unit);
+			// air-mobility
+			assert(ud->movedata == NULL);
 
-			amt->isFighter = (ud->type == "Fighter");
-			amt->collide = ud->collide;
+			if (!ud->builder && !ud->IsTransportUnit() && (ud->IsFighterUnit() || ud->IsBomberUnit())) {
+				CAirMoveType* amt = new CAirMoveType(unit);
 
-			amt->wingAngle = ud->wingAngle;
-			amt->crashDrag = 1.0f - ud->crashDrag;
-			amt->invDrag = 1.0f - ud->drag;
-			amt->frontToSpeed = ud->frontToSpeed;
-			amt->speedToFront = ud->speedToFront;
-			amt->myGravity = ud->myGravity;
+				amt->isFighter = (ud->IsFighterUnit());
+				amt->collide = ud->collide;
 
-			amt->maxBank = ud->maxBank;
-			amt->maxPitch = ud->maxPitch;
-			amt->turnRadius = ud->turnRadius;
-			amt->wantedHeight =
-				(ud->wantedHeight * 1.5f) +
-				((gs->randFloat() - 0.3f) * 15.0f * (amt->isFighter? 2.0f: 1.0f));
+				amt->wingAngle = ud->wingAngle;
+				amt->crashDrag = 1.0f - ud->crashDrag;
+				amt->invDrag = 1.0f - ud->drag;
+				amt->frontToSpeed = ud->frontToSpeed;
+				amt->speedToFront = ud->speedToFront;
+				amt->myGravity = ud->myGravity;
 
-			// same as {Ground, TAAir}MoveType::accRate
-			amt->maxAcc = ud->maxAcc;
+				amt->maxBank = ud->maxBank;
+				amt->maxPitch = ud->maxPitch;
+				amt->turnRadius = ud->turnRadius;
+				amt->wantedHeight =
+					(ud->wantedHeight * 1.5f) +
+					((gs->randFloat() - 0.3f) * 15.0f * (amt->isFighter? 2.0f: 1.0f));
 
-			amt->maxAileron = ud->maxAileron;
-			amt->maxElevator = ud->maxElevator;
-			amt->maxRudder = ud->maxRudder;
+				// same as {Ground, TAAir}MoveType::accRate
+				amt->maxAcc = ud->maxAcc;
 
-			amt->useSmoothMesh = ud->useSmoothMesh;
+				amt->maxAileron = ud->maxAileron;
+				amt->maxElevator = ud->maxElevator;
+				amt->maxRudder = ud->maxRudder;
 
-			mt = amt;
+				amt->useSmoothMesh = ud->useSmoothMesh;
+
+				mt = amt;
+			} else {
+				CTAAirMoveType* taamt = new CTAAirMoveType(unit);
+
+				taamt->turnRate = ud->turnRate;
+				taamt->maxSpeed = ud->speed / GAME_SPEED;
+				taamt->accRate = std::max(0.01f, ud->maxAcc);
+				taamt->decRate = std::max(0.01f, ud->maxDec);
+				taamt->wantedHeight = ud->wantedHeight + gs->randFloat() * 5.0f;
+				taamt->orgWantedHeight = taamt->wantedHeight;
+				taamt->dontLand = ud->DontLand();
+				taamt->collide = ud->collide;
+				taamt->altitudeRate = ud->verticalSpeed;
+				taamt->bankingAllowed = ud->bankingAllowed;
+				taamt->useSmoothMesh = ud->useSmoothMesh;
+
+				mt = taamt;
+			}
 		}
 	} else {
 		assert(ud->speed <= 0.0f);
@@ -83,9 +88,6 @@ AMoveType* MoveTypeFactory::GetMoveType(CUnit* unit, const UnitDef* ud) {
 
 		mt = new CStaticMoveType(unit);
 	}
-
-	if (ud->speed > 0.0f)
-		unit->mobility = new MoveData(ud->movedata);
 
 	return mt;
 }

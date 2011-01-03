@@ -365,7 +365,7 @@ void CUnit::PreInit(const UnitDef* uDef, int uTeam, int facing, const float3& po
 	posErrorVector.y *= 0.2f;
 
 #ifdef TRACE_SYNC
-	tracefile << "New unit: " << unitDefName.c_str() << " ";
+	tracefile << "[" << __FUNCTION__ << "] new unit: " << unitDefName << " ";
 	tracefile << pos.x << " " << pos.y << " " << pos.z << " " << id << "\n";
 #endif
 
@@ -378,7 +378,7 @@ void CUnit::PreInit(const UnitDef* uDef, int uTeam, int facing, const float3& po
 	upright  = unitDef->upright;
 
 	buildFacing = std::abs(facing) % NUM_FACINGS;
-	curYardMap = (unitDef->yardmaps[buildFacing].empty())? NULL: &unitDef->yardmaps[buildFacing][0];
+	curYardMap = (unitDef->GetYardMap(buildFacing).empty())? NULL: &unitDef->GetYardMap(buildFacing)[0];
 	xsize = ((buildFacing & 1) == 0) ? unitDef->xsize : unitDef->zsize;
 	zsize = ((buildFacing & 1) == 1) ? unitDef->xsize : unitDef->zsize;
 
@@ -396,7 +396,6 @@ void CUnit::PreInit(const UnitDef* uDef, int uTeam, int facing, const float3& po
 	armorType = unitDef->armorType;
 	category = unitDef->category;
 
-	aihint = unitDef->aihint;
 	tooltip = unitDef->humanName + " - " + unitDef->tooltip;
 	wreckName = unitDef->wreckName;
 
@@ -498,7 +497,7 @@ void CUnit::PostInit(const CUnit* builder)
 	// would be given away otherwise by the PF, etc.
 	// note: this does mean that mines can be stacked (would
 	// need an extra yardmap character to prevent)
-	immobile = (unitDef->speed < 0.001f || !unitDef->canmove);
+	immobile = unitDef->IsImmobileUnit();
 	blocking = !(immobile && unitDef->canKamikaze);
 
 	if (blocking) {
@@ -2323,7 +2322,6 @@ CR_REG_METADATA(CUnit, (
 	//CR_MEMBER(unitDef),
 	CR_MEMBER(unitDefName),
 	CR_MEMBER(collisionVolume),
-	CR_MEMBER(aihint),
 	CR_MEMBER(frontdir),
 	CR_MEMBER(rightdir),
 	CR_MEMBER(updir),

@@ -2005,7 +2005,7 @@ EXPORT(const char*) skirmishAiCallback_UnitDef_getFileName(int skirmishAIId, int
 //}
 
 EXPORT(int) skirmishAiCallback_UnitDef_getAiHint(int skirmishAIId, int unitDefId) {
-	return getUnitDefById(skirmishAIId, unitDefId)->aihint;
+	return 0;
 }
 
 EXPORT(int) skirmishAiCallback_UnitDef_getCobId(int skirmishAIId, int unitDefId) {
@@ -2017,7 +2017,7 @@ EXPORT(int) skirmishAiCallback_UnitDef_getTechLevel(int skirmishAIId, int unitDe
 }
 
 EXPORT(const char*) skirmishAiCallback_UnitDef_getGaia(int skirmishAIId, int unitDefId) {
-	return getUnitDefById(skirmishAIId, unitDefId)->gaia.c_str();
+	return "";
 }
 
 EXPORT(float) skirmishAiCallback_UnitDef_getUpkeep(int skirmishAIId,
@@ -2346,7 +2346,7 @@ EXPORT(float) skirmishAiCallback_UnitDef_getMaxWeaponRange(int skirmishAIId, int
 }
 
 EXPORT(const char*) skirmishAiCallback_UnitDef_getType(int skirmishAIId, int unitDefId) {
-	return getUnitDefById(skirmishAIId, unitDefId)->type.c_str();
+	return "$$deprecated$$";
 }
 
 EXPORT(const char*) skirmishAiCallback_UnitDef_getTooltip(int skirmishAIId, int unitDefId) {
@@ -2563,24 +2563,20 @@ EXPORT(float) skirmishAiCallback_UnitDef_getMaxRudder(int skirmishAIId, int unit
 
 EXPORT(int) skirmishAiCallback_UnitDef_getYardMap(int skirmishAIId, int unitDefId, int facing, short* yardMap, int yardMap_sizeMax) {
 
-	if ((facing < 0) || (facing >= 4)) {
-		return 0;
-	}
-
 	const UnitDef* unitDef = getUnitDefById(skirmishAIId, unitDefId);
-	const int yardMap_sizeReal = unitDef->yardmaps[facing].size();
+	const std::vector<unsigned char>& yardMapInternal = unitDef->GetYardMap(facing);
 
-	int yardMap_size = yardMap_sizeReal;
+	int yardMapSize = yardMapInternal.size();
 
-	if (yardMap != NULL) {
-		yardMap_size = min(yardMap_sizeReal, yardMap_sizeMax);
-		const std::vector<unsigned char>& ym = unitDef->yardmaps[facing];
-		for (int i = 0; i < yardMap_size; ++i) {
-			yardMap[i] = (short) ym[i];
+	if ((yardMap != NULL) && !yardMapInternal.empty()) {
+		yardMapSize = min(yardMapInternal.size(), yardMap_sizeMax);
+
+		for (int i = 0; i < yardMapSize; ++i) {
+			yardMap[i] = (short) yardMapInternal[i];
 		}
 	}
 
-	return yardMap_size;
+	return yardMapSize;
 }
 
 EXPORT(int) skirmishAiCallback_UnitDef_getXSize(int skirmishAIId, int unitDefId) {
@@ -2592,7 +2588,7 @@ EXPORT(int) skirmishAiCallback_UnitDef_getZSize(int skirmishAIId, int unitDefId)
 }
 
 EXPORT(int) skirmishAiCallback_UnitDef_getBuildAngle(int skirmishAIId, int unitDefId) {
-	return getUnitDefById(skirmishAIId, unitDefId)->buildangle;
+	return 0;
 }
 
 EXPORT(float) skirmishAiCallback_UnitDef_getLoadingRadius(int skirmishAIId, int unitDefId) {
@@ -3116,7 +3112,7 @@ EXPORT(int) skirmishAiCallback_Unit_getAllyTeam(int skirmishAIId, int unitId) {
 }
 
 EXPORT(int) skirmishAiCallback_Unit_getAiHint(int skirmishAIId, int unitId) {
-	return skirmishAIId_callback[skirmishAIId]->GetUnitAiHint(unitId);
+	return 0;
 }
 
 EXPORT(int) skirmishAiCallback_Unit_getSupportedCommands(int skirmishAIId, int unitId) {

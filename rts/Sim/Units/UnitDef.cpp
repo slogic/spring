@@ -56,12 +56,10 @@ UnitDefWeapon::UnitDefWeapon(
 
 UnitDef::UnitDef()
 : id(-1)
+, cobID(-1)
 , collisionVolume(NULL)
 , decoyDef(NULL)
-, aihint(0)
-, cobID(-1)
 , techLevel(0)
-, gaia("")
 , metalUpkeep(0.0f)
 , energyUpkeep(0.0f)
 , metalMake(0.0f)
@@ -190,7 +188,6 @@ UnitDef::UnitDef()
 , movedata(NULL)
 , xsize(0)
 , zsize(0)
-, buildangle(0)
 , loadingRadius(0.0f)
 , unloadSpread(0.0f)
 , transportCapacity(0)
@@ -276,7 +273,7 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 , decoyDef(NULL)
 , techLevel(-1)
 , buildPic(NULL)
-, buildangle(0)
+, movedata(NULL)
 {
 	humanName = udTable.GetString("name", "");
 	if (humanName.empty()) {
@@ -290,9 +287,7 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	}
 	tooltip = udTable.GetString("description", name);
 	buildPicName = udTable.GetString("buildPic", "");
-
 	decoyName = udTable.GetString("decoyFor", "");
-	gaia = udTable.GetString("gaia", "");
 
 	isCommander = udTable.GetBool("commander", false);
 
@@ -314,8 +309,6 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	idleAutoHeal = udTable.GetFloat("idleAutoHeal", 10.0f) * (16.0f / GAME_SPEED);
 	idleTime     = udTable.GetInt("idleTime", 600);
 
-	buildangle = udTable.GetInt("buildAngle", 0);
-
 	losHeight = 20;
 	metalCost = udTable.GetFloat("buildCostMetal", 0.0f);
 	if (metalCost < 1.0f) {
@@ -331,7 +324,6 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 		buildTime = 1.0f; //avoid some nasty divide by 0 etc
 	}
 
-	aihint = id; // FIXME? (as noted in SelectedUnits.cpp, aihint is ignored)
 	cobID = udTable.GetInt("cobID", -1);
 
 	losRadius = udTable.GetFloat("sightDistance", 0.0f) * modInfo.losMul / (SQUARE_SIZE * (1 << modInfo.losMipLevel));
@@ -514,7 +506,7 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 
 	maxBank = udTable.GetFloat("maxBank", 0.8f);         // max roll
 	maxPitch = udTable.GetFloat("maxPitch", 0.45f);      // max pitch this plane tries to keep
-	turnRadius = udTable.GetFloat("turnRadius", 500.0f); // hint to the ai about how large turn radius this plane needs
+	turnRadius = udTable.GetFloat("turnRadius", 500.0f); // hint to CAirMoveType about required turn-radius
 	verticalSpeed = udTable.GetFloat("verticalSpeed", 3.0f); // speed of takeoff and landing, at least for gunships
 
 	maxAileron  = udTable.GetFloat("maxAileron",  0.015f); // turn speed around roll axis
@@ -553,69 +545,34 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	canDGun = udTable.GetBool("canDGun", false);
 	needGeo = false;
 
-	extractRange = 0.0f;
+	extractRange = mapInfo->map.extractorRadius * int(extractsMetal > 0.0f);
 	extractSquare = udTable.GetBool("extractSquare", false);
 
-	if (extractsMetal) {
-		extractRange = mapInfo->map.extractorRadius;
-		type = "MetalExtractor";
-	}
-	else if (transportCapacity) {
-		type = "Transport";
-	}
-	else if (builder) {
-		if ((speed > 0.0f) || canfly || udTable.GetString("yardMap", "").empty()) {
-			// hubs and nano-towers need to be builders (for now)
-			type = "Builder";
-		} else {
-			type = "Factory";
-		}
-	}
-	else if (canfly && !hoverAttack) {
-		if (!weapons.empty() && (weapons[0].def != 0) &&
-		   (weapons[0].def->type == "AircraftBomb" || weapons[0].def->type == "TorpedoLauncher")) {
-			type = "Bomber";
+	// aircraft have MoveTypes but no MoveData;
+	// static structures have no use for either
+	// (but get StaticMoveType instances)
+	if (WantsMoveType() && !canfly) {
+		const std::string& moveClass = StringToLower(udTable.GetString("movementClass", ""));
+		const std::string errMsg = "WARNING: Couldn't find a MoveClass named " + moveClass + " (used in UnitDef: " + unitName + ")";
 
-			if (turnRadius == 500) { // only reset it if user hasnt set it explicitly
-				turnRadius *= 2;   // hint to the ai about how large turn radius this plane needs
-			}
-		} else {
-			type = "Fighter";
-		}
-		maxAcc = udTable.GetFloat("maxAcc", 0.065f); // engine power
-	}
-	else if (canmove) {
-		type = "GroundUnit";
-	}
-	else {
-		type = "Building";
-	}
-
-
-	movedata = NULL;
-
-	if (canmove && !canfly && (type != "Factory")) {
-		const std::string& moveclass = StringToLower(udTable.GetString("movementClass", ""));
-
-		if ((movedata = moveinfo->GetMoveDataFromName(moveclass)) == NULL) {
-			const string errmsg = "WARNING: Couldn't find a MoveClass named " + moveclass + " (used in UnitDef: " + unitName + ")";
-			throw content_error(errmsg); //! invalidate unitDef (this gets catched in ParseUnitDef!)
+		if ((movedata = moveinfo->GetMoveDataFromName(moveClass)) == NULL) {
+			throw content_error(errMsg); //! invalidate unitDef (this gets catched in ParseUnitDef!)
 		}
 
 		if (canhover) {
 			if (movedata->moveType != MoveData::Hover_Move) {
 				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): canhover, but not a hovercraft movetype",
-				     movedata->pathType, name.c_str(), moveclass.c_str());
+				     movedata->pathType, name.c_str(), moveClass.c_str());
 			}
 		} else if (floater) {
 			if (movedata->moveType != MoveData::Ship_Move) {
 				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): floater, but not a ship movetype",
-				     movedata->pathType, name.c_str(), moveclass.c_str());
+				     movedata->pathType, name.c_str(), moveClass.c_str());
 			}
 		} else {
 			if (movedata->moveType != MoveData::Ground_Move) {
 				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): neither canhover nor floater, but not a ground movetype",
-				     movedata->pathType, name.c_str(), moveclass.c_str());
+				     movedata->pathType, name.c_str(), moveClass.c_str());
 			}
 		}
 	}
@@ -628,17 +585,28 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 			(movedata->moveType == MoveData::Ship_Move);
 	}
 
+	if (IsAirUnit()) {
+		if (IsFighterUnit() || IsBomberUnit()) {
+			// double turn-radius for bombers if not set explicitly
+			if (IsBomberUnit() && turnRadius == 500.0f) {
+				turnRadius *= 2.0f;
+			}
 
-	if ((maxAcc != 0) && (speed != 0)) {
-		//meant to set the drag such that the maxspeed becomes what it should be
-		drag = (1.0f / (speed / GAME_SPEED * 1.1f / maxAcc)) - (wingAngle * wingAngle * wingDrag);
-		drag = Clamp(drag, 0.0f, 1.0f);
-	} else {
-		//shouldn't be needed since drag is only used in CAirMoveType anyway,
-		//and aircraft without acceleration or speed aren't common :)
-		//initializing it anyway just for safety
-		drag = 0.005f;
+			maxAcc = udTable.GetFloat("maxAcc", 0.065f); // engine power
+		}
+
+		if ((maxAcc != 0) && (speed != 0)) {
+			//meant to set the drag such that the maxspeed becomes what it should be
+			drag = (1.0f / (speed / GAME_SPEED * 1.1f / maxAcc)) - (wingAngle * wingAngle * wingDrag);
+			drag = Clamp(drag, 0.0f, 1.0f);
+		} else {
+			//shouldn't be needed since drag is only used in CAirMoveType anyway,
+			//and aircraft without acceleration or speed aren't common :)
+			//initializing it anyway just for safety
+			drag = 0.005f;
+		}
 	}
+
 
 	objectName = udTable.GetString("objectName", "");
 	if (objectName.find(".") == std::string::npos) {
@@ -672,7 +640,7 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	xsize = std::max(1 * 2, (udTable.GetInt("footprintX", 1) * 2));
 	zsize = std::max(1 * 2, (udTable.GetInt("footprintZ", 1) * 2));
 
-	if (speed <= 0.0f) {
+	if (IsImmobileUnit()) {
 		CreateYardMap(udTable.GetString("yardMap", ""));
 	}
 
@@ -986,6 +954,16 @@ bool UnitDef::IsAllowedTerrainHeight(float rawHeight, float* clampedHeight) cons
 
 	// <rawHeight> must lie in the range [-maxDepth, -minDepth]
 	return (rawHeight >= -maxDepth && rawHeight <= -minDepth);
+}
+
+
+
+bool UnitDef::HasBomberWeapon() const {
+	if (weapons.empty()) { return false; }
+	if (weapons[0].def == NULL) { return false; }
+	return
+		weapons[0].def->type == "AircraftBomb" ||
+		weapons[0].def->type == "TorpedoLauncher";
 }
 
 /******************************************************************************/

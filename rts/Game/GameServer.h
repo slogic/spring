@@ -15,8 +15,8 @@
 
 #include "GameData.h"
 #include "Sim/Misc/TeamBase.h"
-#include "UnsyncedRNG.h"
-#include "float3.h"
+#include "System/UnsyncedRNG.h"
+#include "System/float3.h"
 #include "System/myTime.h"
 
 namespace netcode
@@ -162,12 +162,12 @@ private:
 	bool cheating;
 
 	size_t ReserveNextAvailableSkirmishAIId();
-	
+
 	std::map<size_t, GameSkirmishAI> ais;
 	std::list<size_t> usedSkirmishAIIds;
 	void FreeSkirmishAIId(const size_t skirmishAIId);
 
-	std::vector<GameParticipant> players;	
+	std::vector<GameParticipant> players;
 	std::vector<GameTeam> teams;
 	std::vector<unsigned char> winningAllyTeams;
 
@@ -221,9 +221,6 @@ private:
 	UnsyncedRNG rng;
 	boost::thread* thread;
 	mutable boost::recursive_mutex gameServerMutex;
-	typedef std::set<unsigned char> PlayersToForwardMsgvec;
-	typedef std::map<unsigned char, PlayersToForwardMsgvec> MsgToForwardMap;
-	MsgToForwardMap relayingMessagesMap;
 
 	bool canReconnect;
 	bool gameHasStarted;
@@ -234,3 +231,4 @@ private:
 extern CGameServer* gameServer;
 
 #endif // __GAME_SERVER_H__
+
