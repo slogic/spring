@@ -379,11 +379,7 @@
 			Name="SpringRTS"
 			>
 			<File
-				RelativePath="..\..\..\..\..\rts\Sim\Misc\DamageArray.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\..\rts\Sim\Misc\DamageArray.h"
+				RelativePath="..\..\..\..\..\rts\ExternalAI\AISCommands.cpp"
 				>
 			</File>
 			<File
@@ -436,6 +432,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\..\Wrappers\LegacyCpp\AIGlobalAICallback.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\Wrappers\LegacyCpp\DamageArray.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\Wrappers\LegacyCpp\DamageArray.h"
 				>
 			</File>
 			<File
