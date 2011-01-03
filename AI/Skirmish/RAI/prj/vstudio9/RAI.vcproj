@@ -431,14 +431,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\..\Wrappers\LegacyCpp\AIGlobalAI.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\..\Wrappers\LegacyCpp\AIGlobalAI.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\..\Wrappers\LegacyCpp\AIGlobalAICallback.cpp"
 				>
 			</File>
@@ -447,11 +439,19 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\..\Wrappers\LegacyCpp\AISCommands.cpp"
+				RelativePath="..\..\..\..\Wrappers\LegacyCpp\MoveData.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\Wrappers\LegacyCpp\MoveData.h"
 				>
 			</File>
 			<File
 				RelativePath="..\..\..\..\Wrappers\LegacyCpp\UnitDef.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\Wrappers\LegacyCpp\UnitDef.h"
 				>
 			</File>
 		</Filter>
