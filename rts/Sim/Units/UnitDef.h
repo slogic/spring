@@ -18,7 +18,7 @@ struct WeaponDef;
 struct S3DModel;
 struct UnitDefImage;
 struct CollisionVolume;
-class CExplosionGenerator;
+class IExplosionGenerator;
 class LuaTable;
 
 
@@ -64,7 +64,7 @@ public:
 	bool IsAllowedTerrainHeight(float rawHeight, float* clampedHeight = NULL) const;
 
 	bool IsExtractorUnit()      const { return (extractsMetal > 0.0f); }
-	bool IsTransportUnit()      const { return (transportCapacity > 0); }
+	bool IsTransportUnit()      const { return (transportCapacity > 0 && transportMass > 0.0f); }
 	bool IsImmobileUnit()       const { return (movedata == NULL && !canfly && speed <= 0.0f); }
 	bool IsMobileBuilderUnit()  const { return (builder && !IsImmobileUnit()); }
 	bool IsStaticBuilderUnit()  const { return (builder &&  IsImmobileUnit()); }
@@ -301,7 +301,7 @@ public:
 	float minTransportMass;
 	bool holdSteady;
 	bool releaseHeld;
-	bool cantBeTransported;
+	bool cantBeTransported;                         /// defaults to true for buildings, false for all other unit-types
 	bool transportByEnemy;
 	int transportUnloadMethod;						///< 0 - land unload, 1 - flyover drop, 2 - land flood
 	float fallSpeed;								///< dictates fall speed of all transported units
@@ -385,13 +385,12 @@ public:
 	float minAirBasePower;							///< min build power for airbases that this aircraft can land on
 
 	std::vector<std::string> sfxExplGenNames;
-	std::vector<CExplosionGenerator*> sfxExplGens;	//< list of explosion generators for use in scripts
+	std::vector<IExplosionGenerator*> sfxExplGens;	//< list of explosion generators for use in scripts
 
 	std::string pieceTrailCEGTag;					//< base tag (eg. "flame") of CEG attached to pieces of exploding units
 	int pieceTrailCEGRange;							//< range of piece CEGs (0-based, range 8 ==> tags "flame0", ..., "flame7")
 
 	int maxThisUnit;								///< number of units of this type allowed simultaneously in the game
-	bool transportableBuilding;						///< Can this building be transported?
 
 	std::map<std::string, std::string> customParams;
 

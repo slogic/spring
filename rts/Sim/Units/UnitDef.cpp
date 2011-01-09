@@ -6,7 +6,6 @@
 #include "Game/GameSetup.h"
 #include "Lua/LuaParser.h"
 #include "Map/MapInfo.h"
-#include "Map/ReadMap.h"
 #include "Sim/Misc/CategoryHandler.h"
 #include "Sim/Misc/CollisionVolume.h"
 #include "Sim/Misc/DamageArrayHandler.h"
@@ -244,7 +243,7 @@ UnitDef::UnitDef()
 , canLoopbackAttack(false)
 , levelGround(false)
 , useBuildingGroundDecal(false)
-, buildingDecalType(0)
+, buildingDecalType(-1)
 , buildingDecalSizeX(0)
 , buildingDecalSizeY(0)
 , buildingDecalDecaySpeed(0.0f)
@@ -256,7 +255,6 @@ UnitDef::UnitDef()
 , minAirBasePower(0.0f)
 , pieceTrailCEGRange(-1)
 , maxThisUnit(0)
-, transportableBuilding(false)
 , realMetalCost(0.0f)
 , realEnergyCost(0.0f)
 , realMetalUpkeep(0.0f)
@@ -481,7 +479,7 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	minTransportMass  = udTable.GetFloat("minTransportMass", 0.0f);
 	holdSteady        = udTable.GetBool("holdSteady",        false);
 	releaseHeld       = udTable.GetBool("releaseHeld",       false);
-	cantBeTransported = udTable.GetBool("cantBeTransported", false);
+	cantBeTransported = udTable.GetBool("cantBeTransported", !WantsMoveType());
 	transportByEnemy  = udTable.GetBool("transportByEnemy",  true);
 	fallSpeed         = udTable.GetFloat("fallSpeed",    0.2);
 	unitFallSpeed     = udTable.GetFloat("unitFallSpeed",  0);
@@ -517,7 +515,6 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 	refuelTime = udTable.GetFloat("refuelTime", 5.0f);
 	minAirBasePower = udTable.GetFloat("minAirBasePower", 0.0f);
 	maxThisUnit = udTable.GetInt("unitRestricted", MAX_UNITS);
-	transportableBuilding = udTable.GetBool("transportableBuilding", false);
 
 	const string lname = StringToLower(name);
 
@@ -559,20 +556,24 @@ UnitDef::UnitDef(const LuaTable& udTable, const std::string& unitName, int id)
 			throw content_error(errMsg); //! invalidate unitDef (this gets catched in ParseUnitDef!)
 		}
 
+		movedata->unitDefRefCount += 1;
+
+		static const char* fmtString =
+			"[%s] inconsistent path-type %i for \"%s\" (move-class \"%s\"): %s, but not a %s-based movetype";
+		const char* udName = name.c_str();
+		const char* mdName = moveClass.c_str();
+
 		if (canhover) {
 			if (movedata->moveType != MoveData::Hover_Move) {
-				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): canhover, but not a hovercraft movetype",
-				     movedata->pathType, name.c_str(), moveClass.c_str());
+				logOutput.Print(fmtString, __FUNCTION__, movedata->pathType, udName, mdName, "canhover", "hover");
 			}
 		} else if (floater) {
 			if (movedata->moveType != MoveData::Ship_Move) {
-				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): floater, but not a ship movetype",
-				     movedata->pathType, name.c_str(), moveClass.c_str());
+				logOutput.Print(fmtString, __FUNCTION__, movedata->pathType, udName, mdName, "floater", "ship");
 			}
 		} else {
 			if (movedata->moveType != MoveData::Ground_Move) {
-				logOutput.Print("Inconsistent movedata %i for %s (moveclass %s): neither canhover nor floater, but not a ground movetype",
-				     movedata->pathType, name.c_str(), moveClass.c_str());
+				logOutput.Print(fmtString, __FUNCTION__, movedata->pathType, udName, mdName, "!(canhover || floater)", "ground");
 			}
 		}
 	}
@@ -749,7 +750,7 @@ UnitDef::~UnitDef()
 	delete collisionVolume;
 	collisionVolume = NULL;
 
-	for (std::vector<CExplosionGenerator*>::iterator it = sfxExplGens.begin(); it != sfxExplGens.end(); ++it) {
+	for (std::vector<IExplosionGenerator*>::iterator it = sfxExplGens.begin(); it != sfxExplGens.end(); ++it) {
 		delete *it;
 	}
 }

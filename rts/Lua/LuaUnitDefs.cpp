@@ -671,7 +671,6 @@ ADD_BOOL("canAttackWater",  canAttackWater); // CUSTOM
 
 	ADD_INT("techLevel",   ud.techLevel);
 	ADD_INT("maxThisUnit", ud.maxThisUnit);
-	ADD_BOOL("transportableBuilding", ud.transportableBuilding);
 
 	ADD_FLOAT("metalUpkeep",    ud.metalUpkeep);
 	ADD_FLOAT("energyUpkeep",   ud.energyUpkeep);
@@ -913,7 +912,6 @@ ADD_BOOL("canAttackWater",  canAttackWater); // CUSTOM
 	ADD_FLOAT("nanoColorG",   ud.nanoColor.y);
 	ADD_FLOAT("nanoColorB",   ud.nanoColor.z);
 
-//	vector<CExplosionGenerator*>  sfxExplGens;
 	ADD_STRING("pieceTrailCEGTag",   ud.pieceTrailCEGTag);
 	ADD_INT(   "pieceTrailCEGRange", ud.pieceTrailCEGRange);
 
